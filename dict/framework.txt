@@ -1,0 +1,8 @@
+robots.txt
+admin
+login
+signup
+signin
+upload
+logout
+api
