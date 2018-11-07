@@ -81,6 +81,18 @@ class SiteScan(object):
         r = requests.get(self.target_url, allow_redirects=False)
         if 'Server' in r.headers:
             logging.info('Remote Server: {}'.format(r.headers['Server']))
+            if "Werkzeug" in r.headers["Server"]:
+                print('It looks like the backend is flask')
+                if self.mode != "php":
+                    while True:
+                        print("switch into framework mode? [Y/n]")
+                        cmd = input()
+                        if cmd == '' or cmd == 'y' or cmd == 'Y':
+                            self.mode = 'framework'
+                            break
+                        if cmd == 'n' or cmd == 'N':
+                            break
+
         if 'X-Powered-By' in r.headers:
             logging.info('The Backend: {}'.format(r.headers['X-Powered-By']))
             if "PHP" in r.headers['X-Powered-By']:
@@ -108,6 +120,7 @@ class SiteScan(object):
 
             
         # load file to queue
+        self.queue.put_nowait(self.target_url)
         if self.mode == 'framework':
             for i in self.dicts['framework']:
                 self.queue.put_nowait(self.target_url + i)
@@ -124,8 +137,7 @@ class SiteScan(object):
         loop.close()
 
 if __name__ == "__main__":
-    print(r"""\
-         _ __                                   
+    print(r"""         _ __                                   
    _____(_) /____     ______________ _____      
   / ___/ / __/ _ \   / ___/ ___/ __ `/ __ \     
  (__  ) / /_/  __/  (__  ) /__/ /_/ / / / /     
