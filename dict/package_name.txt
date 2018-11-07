@@ -1,0 +1,10 @@
+www
+html
+backup
+wwwroot
+htdocs
+web
+website
+backup
+http
+admin

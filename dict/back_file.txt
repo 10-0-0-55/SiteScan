@@ -1,0 +1,11 @@
+#缓存，各种脑洞后缀
+#vim
+.%FILE%.swp
+.%FILE%.swo
+%FILE%~
+%FILE%.~
+
+#脑洞
+%FILE%.bak
+%FILE%.BAK
+%FILE%.tmp

@@ -1,0 +1,7 @@
+.zip
+.rar
+.tar.gz
+.tar.bz2
+.gz
+.7z
+.iso

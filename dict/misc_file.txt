@@ -1,0 +1,14 @@
+robots.txt
+#Apache
+.htaccess
+#version control
+.git/
+.git/HEAD
+.git/index
+.gitignore
+.ds_store
+.DS_Store
+.svn/
+.hg
+README
+README.md
