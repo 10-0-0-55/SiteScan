@@ -27,3 +27,7 @@ upload.html
 database.inc
 common.inc
 db.inc
+#pma
+phpmyadmin
+pma
+myadmin
