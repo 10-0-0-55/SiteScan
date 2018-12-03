@@ -12,3 +12,5 @@ robots.txt
 .hg
 README
 README.md
+readme
+readme.md

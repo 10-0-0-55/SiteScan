@@ -150,7 +150,13 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--dict', dest="scanDictDir", help="Dictionary Directory for scanning", type=str, default="")
     parser.add_argument('-m', '--mode', dest="mode", help="Target site backend ", type=str, default='php')
     parser.add_argument('-t', '--thread', dest="threads", help="Number of coroutine running the program", type=int, default=50)
+    parser.add_argument('-f', '--file', dest="file", action="store_true")
     args = parser.parse_args()
-    scaner = SiteScan(args.website, args.scanDictDir, args.threads, args.mode)
+    if args.file:
+        path_name = '/'.join(args.website.split('/')[:-1]) + '/'
+        scaner = SiteScan(path_name, args.scanDictDir, args.threads, args.mode)
+        scaner.queue.put_nowait(args.website)
+    else:
+        scaner = SiteScan(args.website, args.scanDictDir, args.threads, args.mode)
     scaner.start()
     logging.info("All down")
