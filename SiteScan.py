@@ -10,15 +10,10 @@ from itertools import product
 import requests
 from urllib.parse import urljoin
 
-logging.basicConfig(level = logging.INFO, format="%(levelname)s %(asctime)s %(message)s")
+logging.basicConfig(level = logging.DEBUG, format="%(levelname)s %(asctime)s %(message)s")
 class SiteScan(object):
 
     def __init__(self, target_url, dict_dir='', max_thread=4, mode = 'php'):
-        if "://" not in target_url:
-            target_url = "http://" + target_url
-        if not target_url.endswith('/'):
-            target_url = target_url + '/'
-        self.target_url = target_url
         self.dict_dir = dict_dir
         if self.dict_dir == '':
             self.dict_dir = os.path.split(os.path.realpath(__file__))[0] + '/dict'
@@ -27,57 +22,15 @@ class SiteScan(object):
         self.dicts = {}
         self.init_dict()
         self.mode = mode
+        if "://" not in target_url:
+            self.target_url = "http://" + target_url
+        else: self.target_url = target_url
         logging.info("Script init ok, target {}".format(target_url))
     
-    def init_dict(self):
-        dict_file = ['misc_file', 'back_file', 'general_file', 'package_ext', 'package_name', 'framework']
-        for file_name in dict_file:
-            try:
-                dic = self.load_dict(self.dict_dir + '/' + file_name + ".txt")
-                logging.info("Loaded dict {}".format(file_name))
-                self.dicts[file_name] = dic
-            except:
-                logging.warning("Load dict {} failed". format(file_name))
-
-
-    def load_dict(self, path):
-        with open(path, 'r') as f:
-            raw_file = f.read()
-        raw_file = raw_file.split('\n')
-        dict_list = []
-        for i in raw_file:
-            if i and not i.startswith('#'):
-                dict_list.append(i)
-        return dict_list
-    
-    async def scan(self, url, queue):
-        logging.debug("scan {}".format("url"))
-        async with aiohttp.ClientSession() as session:
-            async with session.head(url, allow_redirects = False) as resp:
-                if resp.status == 301 or resp.status == 302:
-                    print("[ {code} ] {raw} -> {now}".format(code=resp.status, raw = url, now = urljoin(url,resp.headers["Location"])))
-                    # add into queue
-                    await queue.put(urljoin(url,resp.headers["Location"]))
-                elif resp.status == 403 or resp.status == 200:
-                    print("[ {code} ] {raw}".format(code=resp.status, raw = url))
-                    if not url.endswith('/') and resp.status == 200:
-                        # get file name
-                        file_name = url.split('/')[-1]
-                        path_name = '/'.join(url.split('/')[:-1]) + '/'
-                        for back_file in self.dicts['back_file']:
-                            await queue.put(path_name + back_file.replace("%FILE%", file_name))
-
-    
-    async def handler(self, queue):
-        while not queue.empty():
-            cur_url = await queue.get()
-            try:
-                await self.scan(cur_url, queue)
-            except Exception as e:
-                print(e)
-    
-    def start(self):
-        # first request
+    def site_scan_start(self):
+        if not self.target_url.endswith('/'):
+            self.target_url = self.target_url + '/'
+        self.target_url = self.target_url
         r = requests.get(self.target_url, allow_redirects=False)
         if 'Server' in r.headers:
             logging.info('Remote Server: {}'.format(r.headers['Server']))
@@ -117,7 +70,6 @@ class SiteScan(object):
                             break
                         if cmd == 'n' or cmd == 'N':
                             break
-
             
         # load file to queue
         self.queue.put_nowait(self.target_url)
@@ -136,6 +88,62 @@ class SiteScan(object):
         loop.run_until_complete(asyncio.wait(tasks))
         loop.close()
 
+    def page_scan_prepare(self):
+        self.queue.put_nowait(self.target_url)
+        loop = asyncio.get_event_loop()
+        tasks = [self.handler(self.queue) for _ in range(self.max_thread)]
+        loop.run_until_complete(asyncio.wait(tasks))
+        loop.close()
+        
+    
+    def init_dict(self):
+        dict_file = ['misc_file', 'back_file', 'general_file', 'package_ext', 'package_name', 'framework']
+        for file_name in dict_file:
+            try:
+                dic = self.load_dict(self.dict_dir + '/' + file_name + ".txt")
+                logging.info("Loaded dict {}".format(file_name))
+                self.dicts[file_name] = dic
+            except:
+                logging.warning("Load dict {} failed". format(file_name))
+
+
+    def load_dict(self, path):
+        with open(path, 'r') as f:
+            raw_file = f.read()
+        raw_file = raw_file.split('\n')
+        dict_list = []
+        for i in raw_file:
+            if i and not i.startswith('#'):
+                dict_list.append(i)
+        return dict_list
+    
+    async def scan(self, url, queue):
+        logging.debug("scan {}".format(url))
+        async with aiohttp.ClientSession() as session:
+            async with session.head(url, allow_redirects = False) as resp:
+                if resp.status == 301 or resp.status == 302:
+                    print("[ {code} ] {raw} -> {now}".format(code=resp.status, raw = url, now = urljoin(url,resp.headers["Location"])))
+                    # add into queue
+                    await queue.put(urljoin(url,resp.headers["Location"]))
+                elif resp.status == 403 or resp.status == 200:
+                    print("[ {code} ] {raw}".format(code=resp.status, raw = url))
+                    if not url.endswith('/') and resp.status == 200:
+                        # get file name
+                        file_name = url.split('/')[-1]
+                        path_name = '/'.join(url.split('/')[:-1]) + '/'
+                        for back_file in self.dicts['back_file']:
+                            await queue.put(path_name + back_file.replace("%FILE%", file_name))
+
+    
+    async def handler(self, queue):
+        while not queue.empty():
+            cur_url = await queue.get()
+            try:
+                await self.scan(cur_url, queue)
+            except Exception as e:
+                print(e)
+    
+
 if __name__ == "__main__":
     print(r"""         _ __                                   
    _____(_) /____     ______________ _____      
@@ -152,11 +160,9 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--thread', dest="threads", help="Number of coroutine running the program", type=int, default=50)
     parser.add_argument('-f', '--file', dest="file", action="store_true")
     args = parser.parse_args()
+    scaner = SiteScan(args.website, args.scanDictDir, args.threads, args.mode)
     if args.file:
-        path_name = '/'.join(args.website.split('/')[:-1]) + '/'
-        scaner = SiteScan(path_name, args.scanDictDir, args.threads, args.mode)
-        scaner.queue.put_nowait(args.website)
+        scaner.page_scan_prepare()
     else:
-        scaner = SiteScan(args.website, args.scanDictDir, args.threads, args.mode)
-    scaner.start()
+        scaner.site_scan_start()
     logging.info("All down")
